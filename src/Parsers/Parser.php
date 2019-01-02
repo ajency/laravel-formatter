@@ -56,7 +56,7 @@ abstract class Parser
      * @param  null|string $encoding
      * @return string
      */
-    private function xmlify($data, $structure = null, $basenode = 'xml', $encoding = 'utf-8', $formatted = false)
+    private function xmlify($data, $namespace = null, $exclude = [], $structure = null, $basenode = 'xml', $encoding = 'utf-8', $formatted = false)
     {
         // turn off compatibility mode as simple xml throws a wobbly if you don't.
         if (ini_get('zend.ze1_compatibility_mode') == 1) {
@@ -107,12 +107,16 @@ abstract class Parser
 
                     // recursive call if value is not empty
                     if (!empty($value)) {
-                        $this->xmlify($value, $node, $key);
+                        $this->xmlify($value, $namespace, $exclude, $node, $key);
                     }
                 } else {
                     // add single node.
                     $value = htmlspecialchars(html_entity_decode($value, ENT_QUOTES, 'UTF-8'), ENT_QUOTES, "UTF-8");
-                    $structure->addChild($key, $value);
+                    if($namespace == null || in_array($key, $exclude)) {
+                        $structure->addChild($key, $value);
+                    } else {
+                        $structure->addChild($key, $value, $namespace);
+                    }
                 }
             }
         }
@@ -136,9 +140,9 @@ abstract class Parser
      * @param  bool   $formatted
      * @return string An xml string representing the encapsulated data
      */
-    public function toXml($baseNode = 'xml', $encoding = 'utf-8', $formatted = false)
+    public function toXml($baseNode = 'xml', $namespace = null, $exclude = [], $encoding = 'utf-8', $formatted = false)
     {
-        return $this->xmlify($this->toArray(), null, $baseNode, $encoding, $formatted);
+        return $this->xmlify($this->toArray(), $namespace, $exclude, null, $baseNode, $encoding, $formatted);
     }
 
     private function csvify($data)
