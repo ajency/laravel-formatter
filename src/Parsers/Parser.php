@@ -65,57 +65,63 @@ abstract class Parser
 
         if ($structure == null) {
             $structure = simplexml_load_string("<?xml version='1.0' encoding='$encoding'?><$basenode />");
-        }
-
-        // Force it to be something useful
-        if (!is_array($data) && !is_object($data)) {
-            $data = (array) $data;
-        }
-
-        foreach ($data as $key => $value) {
-            // checking for xml tag having attributes
-            if ($key === '@attributes') {
-                //STRICT IS NECESSARY because if key is numeric @attributes will be cast to integer and 0 == 0!
-                foreach ($data[$key] as $attrName => $attrValue) {
-                    $structure->addAttribute($attrName, $attrValue);
-                }
+            if(substr( $basenode, 0, 3 ) === "rss") {
+                $this->xmlify($data, $namespace, $exclude, $structure->addChild('channel'), 'channel');
             } else {
-                // convert our booleans to 0/1 integer values so they are
-                // not converted to blanks.
-                if (is_bool($value)) {
-                    $value = (int) $value;
-                }
+                $this->xmlify($data, $namespace, $exclude, $structure, $basenode);
+            }
+        } else {
 
-                // no numeric keys in our xml please!
-                if (is_numeric($key)) {
-                    // make string key...
-                    if (isset($value['@name']) && is_string($value['@name'])) {
-                        $key = $value['@name'];
-                    } else {
-                        $key = (Str::singular($basenode) != $basenode) ? Str::singular($basenode) : 'item';
-                    }
+            // Force it to be something useful
+            if (!is_array($data) && !is_object($data)) {
+                $data = (array) $data;
+            }
 
-                    unset($value['@name']);
-                }
-
-                // replace anything not alpha numeric, ':' AND '@' because of '@attributes'
-                $key = preg_replace('/[^a-z_@:\-0-9]/i', '', $key);
-
-                // if there is another array found recursively call this function
-                if (is_array($value) or is_object($value)) {
-                    $node = $structure->addChild($key);
-
-                    // recursive call if value is not empty
-                    if (!empty($value)) {
-                        $this->xmlify($value, $namespace, $exclude, $node, $key);
+            foreach ($data as $key => $value) {
+                // checking for xml tag having attributes
+                if ($key === '@attributes') {
+                    //STRICT IS NECESSARY because if key is numeric @attributes will be cast to integer and 0 == 0!
+                    foreach ($data[$key] as $attrName => $attrValue) {
+                        $structure->addAttribute($attrName, $attrValue);
                     }
                 } else {
-                    // add single node.
-                    $value = htmlspecialchars(html_entity_decode($value, ENT_QUOTES, 'UTF-8'), ENT_QUOTES, "UTF-8");
-                    if($namespace == null || in_array($key, $exclude)) {
-                        $structure->addChild($key, $value);
+                    // convert our booleans to 0/1 integer values so they are
+                    // not converted to blanks.
+                    if (is_bool($value)) {
+                        $value = (int) $value;
+                    }
+
+                    // no numeric keys in our xml please!
+                    if (is_numeric($key)) {
+                        // make string key...
+                        if (isset($value['@name']) && is_string($value['@name'])) {
+                            $key = $value['@name'];
+                        } else {
+                            $key = (Str::singular($basenode) != $basenode) ? Str::singular($basenode) : 'item';
+                        }
+
+                        unset($value['@name']);
+                    }
+
+                    // replace anything not alpha numeric, ':' AND '@' because of '@attributes'
+                    $key = preg_replace('/[^a-z_@:\-0-9]/i', '', $key);
+
+                    // if there is another array found recursively call this function
+                    if (is_array($value) or is_object($value)) {
+                        $node = $structure->addChild($key);
+
+                        // recursive call if value is not empty
+                        if (!empty($value)) {
+                            $this->xmlify($value, $namespace, $exclude, $node, $key);
+                        }
                     } else {
-                        $structure->addChild($key, $value, $namespace);
+                        // add single node.
+                        $value = htmlspecialchars(html_entity_decode($value, ENT_QUOTES, 'UTF-8'), ENT_QUOTES, "UTF-8");
+                        if($namespace == null || in_array($key, $exclude)) {
+                            $structure->addChild($key, $value);
+                        } else {
+                            $structure->addChild($key, $value, $namespace);
+                        }
                     }
                 }
             }
